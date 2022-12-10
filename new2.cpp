@@ -75,8 +75,8 @@ struct userData{
     // Reload "<" comparing by data-size, init speed, factor, orderly
     bool operator < (const userData &A) const{
         if (data < A.data) return true;
-        else if ((data == A.data) && (factor < A.factor)) return true;
-        else if ((data == A.data) && (factor == A.factor) && (speed < A.speed)) return true;
+        else if ((data == A.data) && (speed < A.speed)) return true;
+        else if ((data == A.data) && (speed == A.speed) && (factor < A.factor)) return true;
         return false;
     }
     bool operator == (const userData &A) const{
@@ -86,12 +86,12 @@ struct userData{
 vector <userData> v;    // vector to contain userData, and to sort
 int data_sent[500];     // data_sent[i]: data size has been sent by user i
 vector <userData> channel[200];     // channel[j]: the j-th column of channel
-double channel_factor_final[200];   // channel_factor_final[j]: factor of the j-th column of channel
+double channel_factor[200];   // channel_factor[j]: factor of the j-th column of channel
 priority_queue<pair<double, int>, vector<pair<double, int> >, greater<> > q;    // small root heap: to pop the channel with less factor
 int allocated_channel[500][200];    // allocated_channel[i][j]: if user i has used channel j
 vector <double> avg_speed[500];     // avg_speed[i]: speed of user i in each used channel, sum-up and divided by vector size to get avg
 int ignore_user[500];
-double avg_speed_all, best_speed_all, data_loss, data_all, object_function, penalty_term, score, score_h = -1e6;
+double avg_speed_all, factor_all, best_speed_all, data_loss, data_all, object_function, penalty_term, score, score_h = -1e6;
 char intStr[100], path[100];
 clock_t clock_start, clock_end;
 
@@ -173,32 +173,39 @@ int Rand(int n)
 void organize_data()// Organizing data
 {
     memset(avg_speed, 0, sizeof avg_speed);
-    avg_speed_all = best_speed_all = data_loss = object_function = penalty_term = score = 0;
+    avg_speed_all =  data_loss = object_function = penalty_term = score = 0;
 
     for (int i = 0; i < n; ++i) {
         // Withdraw all speed of the user j.id
-        double a = channel_factor_final[i];
+        double a = channel_factor[i];
         for (auto j : channel[i]) {
             double f = 1- j.factor*(a - j.factor);
             if (f <= 0) f = 0;
             avg_speed[j.id].push_back(j.speed * f);
         }
     }
+
     for (int i = 0; i < u; ++i) {
         // Calculate user i's average speed
         double x = 0;
         for (double j : avg_speed[i]) {
             x += j;
         }
-        if (avg_speed[i].size()) {avg_speed[i][0] = x/(double)avg_speed[i].size();
-        avg_speed_all += avg_speed[i][0];}
-        best_speed_all += user[i].speed;
+        if (avg_speed[i].size()) {
+            avg_speed[i].push_back(x/(double)avg_speed[i].size());
+            avg_speed_all += avg_speed[i][avg_speed[i].size()-1] * user[i].weight;
+        }
+        
         // Calculate user i's data loss
-        if (data_sent[i] < user[i].data) data_loss += user[i].data-data_sent[i];
+        if (data_sent[i] < user[i].data) 
+            data_loss += user[i].data - data_sent[i];
+        printf("%d ", data_sent[i]);
     }
+    printf("\n");
+
     // Calculate the object function and score
-    object_function = avg_speed_all/best_speed_all;
-    penalty_term = data_loss/data_all;
+    object_function = avg_speed_all / best_speed_all;
+    penalty_term = 1.0* data_loss / data_all;
     score = object_function - alpha * penalty_term;
     score_h = max(score, score_h);
 }
@@ -206,14 +213,6 @@ void organize_data()// Organizing data
 void output()
 {
     organize_data();
-    // Ready for output: Put the channel allocation into grid m * n
-    int grid[m][n];
-    memset(grid, -1, sizeof grid);
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < channel[i].size(); ++j) {
-            grid[j][i] = channel[i][j].id;
-        }
-    }
     // Output
     char output_path[100];
     strcpy(output_path, "./result/");
@@ -223,18 +222,23 @@ void output()
 
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < n; ++j) {
-            if (grid[i][j] >= 0) printf("U%d", grid[i][j]+1);
-            else printf("-");
+            if (channel[j].size() > i) 
+                printf("U%d", channel[j][i].id+1);
+            else 
+                printf("-");
             if (j != n-1) printf(","); else printf("\n");
         }
     }
     for (int i = 0; i < u; ++i) {
-        if (data_sent[i] < user[i].data) printf("%d,", user[i].data-data_sent[i]);
+        if (data_sent[i] < user[i].data) 
+            printf("%d,", user[i].data-data_sent[i]);
         else printf("%d,", 0);
     }
     printf("%lf\n", penalty_term);
+
     for (int i = 0; i < u; ++i) {
-        if (avg_speed[i].size()) printf("%lf,", avg_speed[i][0]);
+        if (avg_speed[i].size() > 0) 
+            printf("%lf,", avg_speed[i][avg_speed[i].size()-1]);
         else printf("0,");
     }
     printf("%lf\n", object_function);
@@ -254,6 +258,7 @@ int main() {
     strcat(path, intStr);
     strcat(path, ".csv");
     freopen(path, "r", stdin); // <- Here to change the input file's path!
+
     scanf("%d%*c%d%*c%d%*c", &m, &n, &u);
     scanf("%lf", &alpha);
     printf("%d %d %d %lf\n", m, n, u, alpha);
@@ -261,12 +266,13 @@ int main() {
         userData x;
         x.id = read(), x.speed = read(), x.data = read(), x.factor = read(), x.weight = read();
         // printf("%d %d %d %lf %d\n", x.id, x.speed, x.data, x.factor, x.weight);
-        x.speed *= x.weight;
+        // x.speed *= x.weight;
         x.id --;
         x.factor *= 0.01;
         v.push_back(x);
         user[i] = x;
         data_all += user[i].data;
+        best_speed_all += user[i].speed*user[i].weight;
     }
     for (int i = 0; i < n; ++i) {
         q.push({0, i});
@@ -275,110 +281,43 @@ int main() {
     // Sorting the v from high to low
     sort(v.rbegin(), v.rend());
 
-    bool all_done_flag = false;
-    while (!all_done_flag) {
-        all_done_flag = true;
-        for (auto x : v) {
-            vector<pair<double, int> > q_;
-            q_.clear();
-            all_done_flag &= (data_sent[x.id] >= x.data); // If data-sent is fulfilled, all-done flag AND with true.
-            while (data_sent[x.id] < x.data && !q.empty()) {
-                pair<double, int> p = q.top(); q.pop();
-                if (!allocated_channel[x.id][p.second] && channel[p.second].size() != m) {
-                    p = allocate_user(x, p);
-                    allocated_channel[x.id][p.second] = 1;
-                    q.push(p);
-                    channel_factor_final[p.second] = p.first;
-                }
+    for (int i = 0; i < u; i++)
+    {
+        userData x = v[i];
+        while (data_sent[x.id] < x.data) {
+            int target_j = 0, target_sent=0;
+            int flag = 0;
+            for (int j = 0; j < n; j++)
+            {
+                if (channel_factor[j] >= 1) {flag++; continue;}
+                if (channel[j].size() == 0) {
+                    target_sent = speed_to_data[(int)(x.speed)];
+                    target_j = j; 
+                    break;
+                } 
                 else {
-                    q_.push_back(p);
+                    int sent_tmp = speed_to_data[(int)(x.speed*(1-channel_factor[j]*x.factor))];
+                    if (sent_tmp > target_sent) {
+                        target_sent = sent_tmp;
+                        target_j = j;
+                    }
                 }
-//            printf("%d %d %lf\n", x.id, p.second, p.first);
             }
-            for (auto & j : q_) q.push(j);
-            if (q_.size() == n) {all_done_flag = true; break;} // If all channels can not fit user x, which means allocation fails, end the loop directly.
+            if (flag == n) break;
+            for (int j = 0; j < channel[target_j].size(); j++)
+            {
+                userData y = channel[target_j][j];
+                data_sent[y.id] -= speed_to_data[(int)(y.speed*(1-(channel_factor[target_j]-y.factor)*y.factor))];
+                data_sent[y.id] += speed_to_data[(int)(y.speed*(1-(channel_factor[target_j]-y.factor+x.factor)*y.factor))];
+            }
+            channel[target_j].push_back(x);
+            channel_factor[target_j] += x.factor;
+            data_sent[x.id] += target_sent;
         }
     }
     
-//     // Allocating user x in loop, until all done
-//     bool all_done_flag = false;
-//     while (!all_done_flag) {
-//         all_done_flag = true;
-//         for (auto x : v) {
-//             // if (ignore_user[x.id]) continue;
-//             vector<pair<double, int> > q_;
-//             q_.clear();
-//             all_done_flag &= (data_sent[x.id] >= x.data); // If data-sent is fulfilled, all-done flag AND with true.
-//             while (data_sent[x.id] < x.data && !q.empty()) {
-//                 pair<double, int> p = q.top(); q.pop();
-//                     if (!allocated_channel[x.id][p.second]) {
-//                         int j = p.second;
-//                         if (channel[j].size() <= m && channel[j].size() >= 2*m/3) {
-//                             int k = Rand(channel[j].size());
-//                             userData x = user[k];
-//                             pair<double, int> pp = deallocate_user(x, {channel_factor_final[j], j});
-//                             allocated_channel[k][j] = 0;
-//                             channel_factor_final[j] = pp.first;
-//                             p = pp;
-//                         }
-//                         p = allocate_user(x, p);
-//                         allocated_channel[x.id][p.second] = 1;
-//                         channel_factor_final[p.second] = p.first;
-//                         q.push(p);
-//                     }
-//                     else {
-//                         q_.push_back(p);
-//                     }
-// //            printf("%d %d %lf\n", x.id, p.second, p.first);
-//             }
-//             for (auto & j : q_) q.push(j);
-//             if (q_.size() == n) {
-//                 all_done_flag = true; break;
-//                 // ignore_user[x.id] = 1;
-//             } // If all channels can not fit user x, ignore it in the following.
-//         }
-//     }
 
     output();
-
-    // organize_data();
-    // int cnt_ = 0;
-    // while (data_loss > 0) {
-    //     cnt_ ++;
-    //     if (cnt_ > 10) break;
-    //     for (int i = 0; i < u; i++)
-    //     {
-    //         if (data_sent[i] < user[i].data) {
-    //             vector <int> J;
-    //             for (int k = 0; k < n; k++)
-    //             {
-    //                 J.push_back(k);
-    //             }
-                
-    //             random_shuffle(J.begin(), J.end(), pointer_to_unary_function<int, int>(Rand));
-    //             for (auto j: J)
-    //             {
-    //                 if (!allocated_channel[i][j]) {
-    //                     if (channel[j].size() == m) {
-    //                         int k = Rand(m);
-    //                         userData x = user[k];
-    //                         pair<double, int> p = deallocate_user(x, {channel_factor_final[j], j});
-    //                         allocated_channel[k][j] = 0;
-    //                         channel_factor_final[j] = p.first;
-    //                     }
-    //                     userData x = user[i];
-    //                     pair<double, int> p = allocate_user(x, {channel_factor_final[j], j});
-    //                     allocated_channel[i][j] = 1;
-    //                     channel_factor_final[j] = p.first;
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     organize_data();
-    // }
-    
-
-    // output();
     
     
     return 0;

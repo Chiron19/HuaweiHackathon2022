@@ -1,69 +1,4 @@
-#ifndef _GLIBCXX_NO_ASSERT
-#include <cassert>
-#endif
-#include <cctype>
-#include <cerrno>
-#include <cfloat>
-#include <ciso646>
-#include <climits>
-#include <clocale>
-#include <cmath>
-#include <csetjmp>
-#include <csignal>
-#include <cstdarg>
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-
-#if __cplusplus >= 201103L
-#include <ccomplex>
-#include <cfenv>
-#include <cinttypes>
-#include <cstdalign>
-#include <cstdbool>
-#include <cstdint>
-#include <ctgmath>
-#include <cuchar>
-#include <cwchar>
-#include <cwctype>
-#endif
-
-// C++
-#include <algorithm>
-#include <bitset>
-#include <complex>
-#include <deque>
-#include <exception>
-#include <fstream>
-#include <functional>
-#include <iomanip>
-#include <ios>
-#include <iosfwd>
-#include <iostream>
-#include <istream>
-#include <iterator>
-#include <limits>
-#include <list>
-#include <locale>
-#include <map>
-#include <memory>
-#include <new>
-#include <numeric>
-#include <ostream>
-#include <queue>
-#include <set>
-#include <sstream>
-#include <stack>
-#include <stdexcept>
-#include <streambuf>
-#include <string>
-#include <typeinfo>
-#include <utility>
-#include <valarray>
-#include <vector>
-#include <stdlib.h>
+#include <bits/stdc++.h>
 #include <algorithm>
 using namespace std;
 int m, n, u;
@@ -82,15 +17,15 @@ struct userData{
     bool operator == (const userData &A) const{
         return (id == A.id);
     }
-} user[500];
+} user[2005];
 vector <userData> v;    // vector to contain userData, and to sort
-int data_sent[500];     // data_sent[i]: data size has been sent by user i
-vector <userData> channel[200];     // channel[j]: the j-th column of channel
-double channel_factor_final[200];   // channel_factor_final[j]: factor of the j-th column of channel
+int data_sent[2005];     // data_sent[i]: data size has been sent by user i
+vector <userData> channel[505];     // channel[j]: the j-th column of channel
+double channel_factor_final[505];   // channel_factor_final[j]: factor of the j-th column of channel
 priority_queue<pair<double, int>, vector<pair<double, int> >, greater<> > q;    // small root heap: to pop the channel with less factor
-int allocated_channel[500][200];    // allocated_channel[i][j]: if user i has used channel j
-vector <double> avg_speed[500];     // avg_speed[i]: speed of user i in each used channel, sum-up and divided by vector size to get avg
-int ignore_user[500];
+int allocated_channel[2005][505];    // allocated_channel[i][j]: if user i has used channel j
+vector <double> avg_speed[2005];     // avg_speed[i]: speed of user i in each used channel, sum-up and divided by vector size to get avg
+int ignore_user[2005];
 double avg_speed_all, best_speed_all, data_loss, data_all, object_function, penalty_term, score, score_h = -1e6;
 char intStr[100], path[100];
 clock_t clock_start, clock_end;
@@ -106,7 +41,7 @@ bool cmp(userData a, userData b)
 inline int read(){  // fast read template, to ignore ',' and get a integer
     int s = 0, w = 1;
     char ch = getchar();
-    // while(ch < '0' || ch > '9') { if(ch == '-') w = -1; ch = getchar(); }
+    while(ch < '0' || ch > '9') { if(ch == '-') w = -1; ch = getchar(); }
     while(ch >= '0' && ch <= '9') s = s * 10 + ch - '0', ch = getchar();
     return s*w;
 }
@@ -216,11 +151,10 @@ void output()
     }
     // Output
     char output_path[100];
-    strcpy(output_path, "./result/");
+    strcpy(output_path, R"(.\result\)");
     strcat(output_path, intStr);
     strcat(output_path, ".csv");
     freopen(output_path, "w", stdout);
-
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < n; ++j) {
             if (grid[i][j] >= 0) printf("U%d", grid[i][j]+1);
@@ -244,23 +178,24 @@ void output()
 }
 
 int main() {
+
     // Initialization and inputs
     clock_start = clock();
     // Only need to input test case's number
     int tc_id;
     scanf("%d", &tc_id);
     itoa(tc_id, intStr, 10);
-    strcpy(path, "./test_cases/tc");
+    strcpy(path, R"(.\test_cases\tc)");
     strcat(path, intStr);
     strcat(path, ".csv");
     freopen(path, "r", stdin); // <- Here to change the input file's path!
-    scanf("%d%*c%d%*c%d%*c", &m, &n, &u);
+    m = read();
+    n = read();
+    u = read();
     scanf("%lf", &alpha);
-    printf("%d %d %d %lf\n", m, n, u, alpha);
     for (int i = 0; i < u; ++i) {
         userData x;
         x.id = read(), x.speed = read(), x.data = read(), x.factor = read(), x.weight = read();
-        // printf("%d %d %d %lf %d\n", x.id, x.speed, x.data, x.factor, x.weight);
         x.speed *= x.weight;
         x.id --;
         x.factor *= 0.01;
@@ -274,9 +209,43 @@ int main() {
 
     // Sorting the v from high to low
     sort(v.rbegin(), v.rend());
-
-    bool all_done_flag = false;
-    while (!all_done_flag) {
+    if (0) {
+        // if (tc_id == 9) {
+        //     v.clear();
+        //     for (int i = 0; i < u; ++i) {
+        //         v.push_back(user[i]);
+        //         sort(v.begin(), v.end(), cmp);
+        //     }
+        //     for (int j = 0; j < n; ++j) {
+        //         for (int k = 0; k < v.size(); ++k) {
+        //             int i = v[k].id;
+        //             if (data_sent[i] < user[i].data) {
+        //                 pair<double, int> p = {user[i].factor, j};
+        //                 p = allocate_user(user[i], p);
+        //                 allocated_channel[i][j] = 1;
+        //                 channel_factor_final[j] = p.first;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        //     for (int j = 0; j < n; ++j) {
+        //         for (int k = v.size(); k >=0; --k) {
+        //             int i = v[k].id;
+        //             if (data_sent[i] < user[i].data) {
+        //                 pair<double, int> p = {user[i].factor, j};
+        //                 p = allocate_user(user[i], p);
+        //                 allocated_channel[i][j] = 1;
+        //                 channel_factor_final[j] = p.first;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        //     for (int j = 0; j < n; ++j) {
+        //         q.push({channel_factor_final[j], j});
+        //     }
+        // }
+        bool all_done_flag = false;
+        while (!all_done_flag) {
         all_done_flag = true;
         for (auto x : v) {
             vector<pair<double, int> > q_;
@@ -299,47 +268,55 @@ int main() {
             if (q_.size() == n) {all_done_flag = true; break;} // If all channels can not fit user x, which means allocation fails, end the loop directly.
         }
     }
-    
-//     // Allocating user x in loop, until all done
-//     bool all_done_flag = false;
-//     while (!all_done_flag) {
-//         all_done_flag = true;
-//         for (auto x : v) {
-//             // if (ignore_user[x.id]) continue;
-//             vector<pair<double, int> > q_;
-//             q_.clear();
-//             all_done_flag &= (data_sent[x.id] >= x.data); // If data-sent is fulfilled, all-done flag AND with true.
-//             while (data_sent[x.id] < x.data && !q.empty()) {
-//                 pair<double, int> p = q.top(); q.pop();
-//                     if (!allocated_channel[x.id][p.second]) {
-//                         int j = p.second;
-//                         if (channel[j].size() <= m && channel[j].size() >= 2*m/3) {
-//                             int k = Rand(channel[j].size());
-//                             userData x = user[k];
-//                             pair<double, int> pp = deallocate_user(x, {channel_factor_final[j], j});
-//                             allocated_channel[k][j] = 0;
-//                             channel_factor_final[j] = pp.first;
-//                             p = pp;
-//                         }
-//                         p = allocate_user(x, p);
-//                         allocated_channel[x.id][p.second] = 1;
-//                         channel_factor_final[p.second] = p.first;
-//                         q.push(p);
-//                     }
-//                     else {
-//                         q_.push_back(p);
-//                     }
-// //            printf("%d %d %lf\n", x.id, p.second, p.first);
-//             }
-//             for (auto & j : q_) q.push(j);
-//             if (q_.size() == n) {
-//                 all_done_flag = true; break;
-//                 // ignore_user[x.id] = 1;
-//             } // If all channels can not fit user x, ignore it in the following.
-//         }
-//     }
+    }
 
-    output();
+    else {
+
+
+        
+    
+    
+     // Allocating user x in loop, until all done
+    bool all_done_flag = false;
+    while (!all_done_flag) {
+        all_done_flag = true;
+        for (auto x : v) {
+            // if (ignore_user[x.id]) continue;
+            vector<pair<double, int> > q_;
+            q_.clear();
+            all_done_flag &= (data_sent[x.id] >= x.data); // If data-sent is fulfilled, all-done flag AND with true.
+            while (data_sent[x.id] < x.data && !q.empty()) {
+                pair<double, int> p = q.top(); q.pop();
+                
+                    if (!allocated_channel[x.id][p.second]) {
+                        int j = p.second;
+                        if (channel[j].size() <= m && channel[j].size() >= 1) {
+                            int k = Rand(channel[j].size());
+                            userData x = user[k];
+                            pair<double, int> pp = deallocate_user(x, {channel_factor_final[j], j});
+                            allocated_channel[k][j] = 0;
+                            channel_factor_final[j] = pp.first;
+                            p = pp;
+                        }
+                        p = allocate_user(x, p);
+                        allocated_channel[x.id][p.second] = 1;
+                        channel_factor_final[p.second] = p.first;
+                        q.push(p);
+                    }
+                    else {
+                        q_.push_back(p);
+                    }
+//            printf("%d %d %lf\n", x.id, p.second, p.first);
+            }
+            for (auto & j : q_) q.push(j);
+            if (q_.size() == n) {
+                all_done_flag = true; break;
+                // ignore_user[x.id] = 1;
+            } // If all channels can not fit user x, ignore it in the following.
+        }
+    }
+    }
+    
 
     // organize_data();
     // int cnt_ = 0;
@@ -378,7 +355,7 @@ int main() {
     // }
     
 
-    // output();
+    output();
     
     
     return 0;
