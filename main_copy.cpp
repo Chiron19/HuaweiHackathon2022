@@ -1,6 +1,8 @@
 #include <bits/stdc++.h>
 #include <algorithm>
 using namespace std;
+#define Umax 1605
+#define Nmax 2005
 int m, n, u;
 int speed_to_data[27] = {0,290,575,813,1082,1351,1620,1889,2158,2427,2696,2965,3234,3503,3772,4041,4310,4579,4848,5117,5386,5655,5924,6093,6360,6611,6800};
 double alpha;
@@ -17,15 +19,15 @@ struct userData{
     bool operator == (const userData &A) const{
         return (id == A.id);
     }
-} user[2005];
+} user[Umax];
 vector <userData> v;    // vector to contain userData, and to sort
-int data_sent[2005];     // data_sent[i]: data size has been sent by user i
-vector <userData> channel[505];     // channel[j]: the j-th column of channel
-double channel_factor_final[505];   // channel_factor_final[j]: factor of the j-th column of channel
+int data_sent[Umax];     // data_sent[i]: data size has been sent by user i
+vector <userData> channel[Nmax];     // channel[j]: the j-th column of channel
+double channel_factor_final[Nmax];   // channel_factor_final[j]: factor of the j-th column of channel
 priority_queue<pair<double, int>, vector<pair<double, int> >, greater<> > q;    // small root heap: to pop the channel with less factor
-int allocated_channel[2005][505];    // allocated_channel[i][j]: if user i has used channel j
-vector <double> avg_speed[2005];     // avg_speed[i]: speed of user i in each used channel, sum-up and divided by vector size to get avg
-int ignore_user[2005];
+int allocated_channel[Umax][Nmax];    // allocated_channel[i][j]: if user i has used channel j
+vector <double> avg_speed[Umax];     // avg_speed[i]: speed of user i in each used channel, sum-up and divided by vector size to get avg
+int ignore_user[Umax];
 double avg_speed_all, best_speed_all, data_loss, data_all, object_function, penalty_term, score, score_h = -1e6;
 char intStr[100], path[100];
 clock_t clock_start, clock_end;
@@ -34,8 +36,8 @@ bool cmp(userData a, userData b)
 {
     if (a.factor < b.factor) return true;
     else if ((a.factor == b.factor) && (a.data == b.data)) return true;
-        else if ((a.data == b.data) && (a.factor == b.factor) && (a.speed < b.speed)) return true;
-        return false;
+    else if ((a.data == b.data) && (a.factor == b.factor) && (a.speed < b.speed)) return true;
+    return false;
 }
 
 inline int read(){  // fast read template, to ignore ',' and get a integer
@@ -76,16 +78,20 @@ pair<double, int> deallocate_user(userData x, pair<double, int> p)  // to deallo
     for (auto & y: channel[j]) {
         if (y.id != x.id) {
             double a = channel_factor - y.factor;
-            double f0 = (1-y.factor*a), f1 = (1-y.factor*(a-b));
+            double err = a - b;
+            if (err < 0.001) err = 0;
+            double f0 = (1-y.factor*a), f1 = (1-y.factor*err);
             if (f0 <= 0) f0 = 0;
             if (f1 <= 0) f1 = 0;
-            data_sent[y.id] += speed_to_data[(int)(y.speed * f1)] - 
-                               speed_to_data[(int)(y.speed * f0)];
+            data_sent[y.id] += speed_to_data[(int)floor(y.speed * f1)] - 
+                               speed_to_data[(int)floor(y.speed * f0)];
         }
         else {
-            double f = 1-b*(channel_factor-b);
+            double err = channel_factor-b;
+            if (err < 0.001) err = 0;
+            double f = 1-b*err;
             if (f <= 0) f = 0;
-            data_sent[x.id] -= speed_to_data[(int)(x.speed * f)];
+            data_sent[x.id] -= speed_to_data[(int)floor(x.speed * f)];
         }
     }
     vector <userData> tmp;
@@ -125,11 +131,14 @@ void organize_data()// Organizing data
         for (double j : avg_speed[i]) {
             x += j;
         }
-        if (avg_speed[i].size()) {avg_speed[i][0] = x/(double)avg_speed[i].size();
-        avg_speed_all += avg_speed[i][0];}
-        best_speed_all += user[i].speed;
+        if (avg_speed[i].size()) {
+            avg_speed[i][0] = x/(double)avg_speed[i].size();
+            avg_speed_all += 1.0*avg_speed[i][0]* user[i].weight;
+        }
+        best_speed_all +=  1.0* user[i].speed * user[i].weight;
         // Calculate user i's data loss
         if (data_sent[i] < user[i].data) data_loss += user[i].data-data_sent[i];
+        data_all += user[i].data;
     }
     // Calculate the object function and score
     object_function = avg_speed_all/best_speed_all;
@@ -150,11 +159,11 @@ void output()
         }
     }
     // Output
-//    char output_path[100];
-//    strcpy(output_path, R"(.\result\)");
-//    strcat(output_path, intStr);
-//    strcat(output_path, ".csv");
-//    freopen(output_path, "w", stdout);
+    char output_path[100];
+    strcpy(output_path, R"(.\result\)");
+    strcat(output_path, intStr);
+    strcat(output_path, ".csv");
+    freopen(output_path, "w", stdout);
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < n; ++j) {
             if (grid[i][j] >= 0) printf("U%d", grid[i][j]+1);
@@ -167,6 +176,7 @@ void output()
         else printf("%d,", 0);
     }
     printf("%lf\n", penalty_term);
+
     for (int i = 0; i < u; ++i) {
         if (avg_speed[i].size()) printf("%lf,", avg_speed[i][0]);
         else printf("0,");
@@ -178,30 +188,31 @@ void output()
 }
 
 int main() {
-
     // Initialization and inputs
     clock_start = clock();
     // Only need to input test case's number
     int tc_id;
-//    scanf("%d", &tc_id);
-//    itoa(tc_id, intStr, 10);
-//    strcpy(path, R"(.\test_cases\tc)");
-//    strcat(path, intStr);
-//    strcat(path, ".csv");
-//    freopen(path, "r", stdin); // <- Here to change the input file's path!
-    m = read();
-    n = read();
-    u = read();
+    scanf("%d", &tc_id);
+    itoa(tc_id, intStr, 10);
+    strcpy(path, "./test_cases/tc");
+    strcat(path, intStr);
+    strcat(path, ".csv");
+    freopen(path, "r", stdin); // <- Here to change the input file's path!
+    scanf("%d%*c%d%*c%d%*c", &m, &n, &u);
     scanf("%lf", &alpha);
+    // m = read();
+    // n = read();
+    // u = read();
+    // scanf("%lf", &alpha);
     for (int i = 0; i < u; ++i) {
         userData x;
-        x.id = read(), x.speed = read(), x.data = read(), x.factor = read(), x.weight = read();
-        x.speed *= x.weight;
+        scanf("%d%*c%d%*c%d%*c%lf%*c%d%*c", &x.id, &x.speed, &x.data, &x.factor, &x.weight);
+        // x.id = read(), x.speed = read(), x.data = read(), x.factor = read(), x.weight = read();
         x.id --;
+        // x.speed *= x.weight;
         x.factor *= 0.01;
         v.push_back(x);
         user[i] = x;
-        data_all += user[i].data;
     }
     for (int i = 0; i < n; ++i) {
         q.push({0, i});
@@ -272,11 +283,8 @@ int main() {
 
     else {
 
-
-        
     
-    
-     // Allocating user x in loop, until all done
+        // Allocating user x in loop, until all done
     bool all_done_flag = false;
     while (!all_done_flag) {
         all_done_flag = true;
@@ -290,8 +298,8 @@ int main() {
                 
                     if (!allocated_channel[x.id][p.second]) {
                         int j = p.second;
-                        if (channel[j].size() <= m && channel[j].size() >= 1) {
-                            int k = Rand(channel[j].size());
+                        if (channel[j].size() <= m && channel[j].size() >= 4) {
+                            int k = Rand(channel[j].size()-1);
                             userData x = user[k];
                             pair<double, int> pp = deallocate_user(x, {channel_factor_final[j], j});
                             allocated_channel[k][j] = 0;

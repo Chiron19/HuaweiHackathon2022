@@ -1,4 +1,6 @@
 {
+    "version": "2.0.0",
+    "command": "g++",
     "tasks": [
         {
             "type": "cppbuild",
@@ -19,7 +21,17 @@
             ],
             "group": "build",
             "detail": "调试器生成的任务。"
+        },
+        {
+            "type": "cmake",
+            "label": "CMake: configure",
+            "command": "configure",
+            "problemMatcher": [],
+            "detail": "CMake template configure task",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
-    ],
-    "version": "2.0.0"
+    ]    
 }

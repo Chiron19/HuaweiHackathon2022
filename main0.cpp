@@ -225,10 +225,11 @@ int find_column_j_fill_user_i(int i)
         int j = vec[jj].i;
         // printf("%d\n", j);
         if (!e[i][j] && e_r_k[j] + user[i].k < 1 && e_r[j] < m) {
-            if (e_r_k_ > e_r_k[j] + user[i].k) {
-                e_r_k_ = e_r_k[j] + user[i].k;
-                j_ = j;
-            }
+            return j;
+            // if (e_r_k_ > e_r_k[j] + user[i].k) {
+            //     e_r_k_ = e_r_k[j] + user[i].k;
+            //     j_ = j;
+            // }
         }
     }
     return j_;
@@ -363,20 +364,20 @@ int main() {
     // Sorting the v from high to low
     sort(vec.begin(), vec.end());
 
-    int cnt_down = 100;
+    int cnt_down = 100000;
     while (cnt_down--)
     {
         int cnt_flag = 0;
         int mark_unfinshed[Umax];
-        while (cnt_flag != u)
+        if (1)
         {
             cnt_flag = 0;
             for (int i = 1; i <= u; i++)
             {
                 mark_unfinshed[i] = 0;
                 // printf("(%d)\n", i);
-                if (e_c_q[i] >= user[i].d) {cnt_flag++; continue;}
-                while (e_c_q[i] < user[i].d) {
+                // if (e_c_q[i] >= user[i].d) {cnt_flag++; continue;}
+                if (e_c_q[i] < user[i].d) {
                     int j = find_column_j_fill_user_i(i);
                     // printf("(%d,%d)\n", i, j);
                     if (j) {
@@ -385,50 +386,50 @@ int main() {
                         upgrade_d(i, j);
                     }
                     else {
-                        int ii = find_in_column_j_replace_user_i(i, j);
-                if (ii) {
-                    if (1) {
-                        recover_e(ii, j);
-                        recover_v(ii, j);
-                        recover_d(ii, j);
-                        upgrade_e(i, j);
-                        upgrade_v(i, j);
-                        upgrade_d(i, j);
-                    }
-                }
-                   cnt_flag++;      mark_unfinshed[i] = 1; break;
+                //         int ii = find_in_column_j_replace_user_i(i, j);
+                // if (ii) {
+                //     if (1) {
+                //         recover_e(ii, j);
+                //         recover_v(ii, j);
+                //         recover_d(ii, j);
+                //         upgrade_e(i, j);
+                //         upgrade_v(i, j);
+                //         upgrade_d(i, j);
+                //     }
+                // }
+                //    cnt_flag++;      mark_unfinshed[i] = 1; break;
                     }
                 }
                 // for (int j = 1; j <= n; j++)printf("%lf ", e_r_k[j]);printf("\n\n");
             }
         }
 
-    while (cnt_flag != u)
-    {
-        cnt_flag = 0;
-        int i_flag = 0;
-        for (int i = 1; i <= u; i++)
-        {
-            if (!mark_unfinshed[i]) continue;
-            for (int j = 1; j <= n; j++)
-            {
-                int ii = find_in_column_j_replace_user_i(i, j);
-                if (ii) {
-                    if (Rand(10) <= 7) {
-                        recover_e(ii, j);
-                        recover_v(ii, j);
-                        recover_d(ii, j);
-                        upgrade_e(i, j);
-                        upgrade_v(i, j);
-                        upgrade_d(i, j);
-                        i_flag = 1;
-                    }
+    // while (cnt_flag != u)
+    // {
+    //     cnt_flag = 0;
+    //     int i_flag = 0;
+    //     for (int i = 1; i <= u; i++)
+    //     {
+    //         if (!mark_unfinshed[i]) continue;
+    //         for (int j = 1; j <= n; j++)
+    //         {
+    //             int ii = find_in_column_j_replace_user_i(i, j);
+    //             if (ii) {
+    //                 if (Rand(10) <= 7) {
+    //                     recover_e(ii, j);
+    //                     recover_v(ii, j);
+    //                     recover_d(ii, j);
+    //                     upgrade_e(i, j);
+    //                     upgrade_v(i, j);
+    //                     upgrade_d(i, j);
+    //                     i_flag = 1;
+    //                 }
                     
-                }
-            }
-            if (i_flag) cnt_flag++;
-        }
-    }
+    //             }
+    //         }
+    //         if (i_flag) cnt_flag++;
+    //     }
+    // }
     }
     
 
